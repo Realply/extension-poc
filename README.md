@@ -2,6 +2,8 @@
 
 Follow these steps to install and run the extension locally:
 
+NOTE: Install Typescript globally in your machine
+
 1. Run `npm i` in the terminal.
 2. Run `tsc`.
 3. Run `npx webpack` to create the dist file.
