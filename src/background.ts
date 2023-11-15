@@ -28,6 +28,8 @@ request.onsuccess = function (event: any) {
       if (cursor) {
         var data = cursor.value;
         console.log("Retrieved data:", data);
+        const profileUrn = "urn:li:fsd_profile" + data.profileUrn;
+        sendConnectionRequest(profileUrn);
         cursor.continue();
       } else {
         console.log("No more data!");
@@ -73,3 +75,76 @@ request.onsuccess = function (event: any) {
     }
   });
 };
+
+async function sendConnectionRequest(profileUrn: string) {
+  try {
+    const csrfToken = await getCsrfToken();
+    const liAt = await getLiAtCookie();
+    const customMessage = "Hello! Would love to connect with you.";
+
+    const headers = new Headers({
+      Accept: "application/vnd.linkedin.normalized+json+2.1",
+      "Content-Type": "application/json; charset=UTF-8",
+      "csrf-token": csrfToken,
+      Cookie: `JSESSIONID=${csrfToken}; li_at=${liAt}`,
+    });
+
+    // commenting out the actual logic for sending connection requests
+    // const response = await fetch(
+    //   "https://www.linkedin.com/voyager/api/voyagerRelationshipsDashMemberRelationships?action=verifyQuotaAndCreateV2&decorationId=com.linkedin.voyager.dash.deco.relationships.InvitationCreationResultWithInvitee-2",
+    //   {
+    //     method: "POST",
+    //     headers: headers,
+    //     body: JSON.stringify({
+    //       invitee: {
+    //         inviteeUnion: {
+    //           memberProfile: profileUrn,
+    //         },
+    //       },
+    //       customMessage: customMessage,
+    //     }),
+    //   }
+    // );
+
+    // const data = await response.json();
+    // console.log("Connection request sent successfully:", data);
+
+    console.log("Connection request sent succesfully", profileUrn);
+  } catch (error) {
+    console.error("Error sending connection request:", error);
+  }
+}
+
+async function getCsrfToken() {
+  const domain = "www.linkedin.com";
+  const name = "JSESSIONID";
+
+  return new Promise<string>((resolve, reject) => {
+    chrome.cookies.get({ url: `https://${domain}`, name }, function (cookie) {
+      if (cookie) {
+        const csrfToken = cookie.value;
+        resolve(csrfToken);
+      } else {
+        console.error("Cookie not found");
+        reject("Cookie not found");
+      }
+    });
+  });
+}
+
+async function getLiAtCookie() {
+  const domain = "www.linkedin.com";
+  const name = "li_at";
+
+  return new Promise<string>((resolve, reject) => {
+    chrome.cookies.get({ url: `https://${domain}`, name }, function (cookie) {
+      if (cookie) {
+        const liAt = cookie.value;
+        resolve(liAt);
+      } else {
+        console.error("Cookie not found");
+        reject("Cookie not found");
+      }
+    });
+  });
+}
