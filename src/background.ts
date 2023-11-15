@@ -1,67 +1,75 @@
-chrome.runtime.onInstalled.addListener(() => {
-  // Schedule a job to send connection requests every 5 seconds for testing
-  chrome.alarms.create("sendConnectionRequests", {
-    periodInMinutes: 0.0833, // 5 seconds
+// Open or create the IndexedDB database
+var request = indexedDB.open("LinkedInLeadsDB", 1);
+
+request.onerror = function (event: any) {
+  console.error("Database error: " + event.target.errorCode);
+};
+
+request.onupgradeneeded = function (event: any) {
+  var db = event.target.result;
+  var objectStore = db.createObjectStore("leads", {
+    keyPath: "profileLink",
+    autoIncrement: true,
   });
-});
+};
 
-// Handle the alarm when it fires
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "sendConnectionRequests") {
-    sendConnectionRequests();
+request.onsuccess = function (event: any) {
+  var db = event.target.result;
+
+  // Function to retrieve all data from the object store
+  function getAllData() {
+    var transaction = db.transaction(["leads"], "readonly");
+    var objectStore = transaction.objectStore("leads");
+
+    var getAllRequest = objectStore.openCursor();
+
+    getAllRequest.onsuccess = function (event: any) {
+      var cursor = event.target.result;
+      if (cursor) {
+        var data = cursor.value;
+        console.log("Retrieved data:", data);
+        cursor.continue();
+      } else {
+        console.log("No more data!");
+      }
+    };
+
+    getAllRequest.onerror = function (event: any) {
+      console.error("Error getting data: " + event.target.errorCode);
+    };
   }
-});
 
-function sendConnectionRequests() {
-  const dbName = "LinkedInLeadsDB";
-  const open = indexedDB.open(dbName, 1);
+  // Set up a timer to automatically retrieve data every 3 seconds
+  setInterval(function () {
+    getAllData();
+  }, 10000);
 
-  open.onupgradeneeded = function (event) {
-    const db = (event.target as any).result;
-    if (!db.objectStoreNames.contains("leads")) {
-      db.createObjectStore("leads", { keyPath: "profileLink" });
+  // Listen for messages from the popup
+  chrome.runtime.onMessage.addListener(function (
+    request,
+    sender,
+    sendResponse
+  ) {
+    if (request.action === "startCampaign") {
+      console.log("Received leadsData:", request.leadsData);
+      // Add received leadsData to the object store
+      var transaction = db.transaction(["leads"], "readwrite");
+      var objectStore = transaction.objectStore("leads");
+
+      request.leadsData.forEach((leadData: any) => {
+        var addRequest = objectStore.add(leadData);
+
+        addRequest.onsuccess = function () {
+          console.log("Lead data added to IndexedDB");
+        };
+
+        addRequest.onerror = function (event: any) {
+          console.error("Error adding lead data:", event.target.errorCode);
+        };
+      });
+    } else if (request.action === "getData") {
+      // Retrieve all data from the object store
+      getAllData();
     }
-  };
-
-  open.onerror = function (event) {
-    console.error("Error opening database:", event);
-  };
-
-  open.onsuccess = function (event) {
-    const db = (event.target as any).result;
-    console.log("DB", db);
-
-    const transaction = db.transaction(["leads"], "readonly");
-
-    transaction.oncomplete = function (event: any) {
-      console.log("Transaction completed");
-    };
-
-    transaction.onerror = function (event: any) {
-      console.error("Transaction error:", event);
-    };
-
-    const objectStore = transaction.objectStore("leads");
-
-    const countRequest = objectStore.count();
-
-    countRequest.onsuccess = function (event: any) {
-      console.log("Number of records in object store:", event.target.result);
-    };
-
-    // Retrieve data from the object store
-    const request = objectStore.getAll();
-
-    console.log("request", request);
-
-    request.onsuccess = function (event: any) {
-      const leads = (event.target as any).result;
-      console.log("Leads from IndexedDB:", leads.length);
-      // connection request logic here
-    };
-
-    request.onerror = function (event: any) {
-      console.error("Error retrieving leads from object store:", event);
-    };
-  };
-}
+  });
+};

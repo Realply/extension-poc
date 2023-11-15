@@ -35,7 +35,9 @@ function startCampaign() {
   // Check if the current page is a LinkedIn search page
   if (isLinkedInSearchPage()) {
     // Execute scraping logic and store information in indexedDB
-    scrapeAndStoreLeads();
+    // scrapeAndStoreLeads();
+    const leadsData = scrapeLinkedInSearchResults();
+    chrome.runtime.sendMessage({ action: "startCampaign", leadsData });
   } else {
     alert("Please navigate to a LinkedIn search page to start the campaign.");
   }
