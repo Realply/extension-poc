@@ -41,7 +41,7 @@ request.onsuccess = function (event: any) {
     };
   }
 
-  // Set up a timer to automatically retrieve data every 3 seconds
+  // Set up a timer to automatically retrieve data every 10 seconds
   setInterval(function () {
     getAllData();
   }, 10000);
